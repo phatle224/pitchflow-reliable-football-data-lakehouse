@@ -244,15 +244,10 @@ def _process_events(spark, bronze: DataFrame, pipeline_run_id: str) -> dict[str,
     valid_events = dedupe_checked.filter(F.col("duplicate_error").isNull() & ~F.col("is_exact_duplicate"))
     duplicate_count = dedupe_checked.filter(F.col("is_exact_duplicate")).count()
 
-    existing = read_delta_or_none(spark, table_path("silver", "match_events"))
-    watermark = existing.agg(F.max("event_timestamp").alias("watermark")).first()["watermark"] if existing is not None else None
     event_timestamp = F.to_timestamp(
         F.from_unixtime(F.unix_timestamp("kickoff_timestamp") + (F.col("minute") * F.lit(60)) + F.coalesce(F.col("second"), F.lit(0)))
     )
-    silver_events = valid_events.withColumn("event_timestamp", event_timestamp).withColumn(
-        "is_late",
-        F.lit(False) if watermark is None else F.col("event_timestamp") < F.lit(watermark),
-    ).select(
+    prepared_events = valid_events.withColumn("event_timestamp", event_timestamp).select(
         "event_id",
         "match_id",
         "team_id",
@@ -268,17 +263,28 @@ def _process_events(spark, bronze: DataFrame, pipeline_run_id: str) -> dict[str,
         "shot_outcome",
         "card_type",
         "event_timestamp",
-        "is_late",
         "source",
         "variant_type",
         "bronze_record_id",
         "event_payload_hash",
         "pipeline_run_id",
     )
-    valid_count = silver_events.count()
+
+    existing = read_delta_or_none(spark, table_path("silver", "match_events"))
+    watermark = existing.agg(F.max("event_timestamp").alias("watermark")).first()["watermark"] if existing is not None else None
+    new_events = (
+        prepared_events
+        if existing is None
+        else prepared_events.join(existing.select("event_id").dropDuplicates(), "event_id", "left_anti")
+    )
+    silver_events = new_events.withColumn(
+        "is_late",
+        F.lit(False) if watermark is None else F.col("event_timestamp") < F.lit(watermark),
+    )
+    valid_count = prepared_events.count()
     late_count = silver_events.filter(F.col("is_late")).count()
-    if valid_count:
-        merge_by_keys(silver_events, table_path("silver", "match_events"), ["event_id"])
+    if not silver_events.rdd.isEmpty():
+        merge_by_keys(silver_events, table_path("silver", "match_events"), ["event_id"], insert_only=True)
 
     event_players = silver_events.filter(F.col("player_id").isNotNull()).select(
         "player_id", "player_name", "team_id", F.lit(None).cast("string").alias("position"), "pipeline_run_id"

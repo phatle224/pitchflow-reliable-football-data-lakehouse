@@ -2,7 +2,7 @@
 
 ## Current status
 
-The repository has no runtime implementation yet. This document describes the approved V1 target from the PRD and implementation plan, not already-running services.
+V1 is implemented as a local Docker Compose stack. The service topology, data contracts, and workflow below describe the running implementation.
 
 ## Component boundaries
 

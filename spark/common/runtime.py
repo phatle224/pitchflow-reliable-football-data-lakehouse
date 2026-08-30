@@ -37,5 +37,7 @@ def build_spark_session(app_name: str):
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.delta.logStore.class", "io.delta.storage.S3SingleDriverLogStore")
+        .config("spark.sql.shuffle.partitions", os.getenv("PITCHFLOW_SPARK_SHUFFLE_PARTITIONS", "8"))
+        .config("spark.default.parallelism", os.getenv("PITCHFLOW_SPARK_DEFAULT_PARALLELISM", "8"))
         .getOrCreate()
     )

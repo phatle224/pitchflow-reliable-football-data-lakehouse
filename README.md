@@ -19,6 +19,12 @@ Open Airflow at `http://localhost:8088`, MinIO at `http://localhost:9001`, and M
 }
 ```
 
+The DAG starts paused, so first unpause it in the Airflow UI or run:
+
+```powershell
+docker compose exec -T airflow-scheduler airflow dags unpause pipeline_daily
+```
+
 The first full run downloads the pinned source snapshot. For a smaller smoke run, use:
 
 ```json
@@ -26,6 +32,16 @@ The first full run downloads the pinned source snapshot. For a smaller smoke run
   "match_limit": 2,
   "inject_chaos": true
 }
+```
+
+## Replay a Bronze selection
+
+V1 supports a focused manual replay without a separate replay DAG. Run `bronze_to_silver.py` with one or more `--bronze-record-id` values, then rebuild the affected match in Gold and republish serving data. Use a new replay run ID for auditability.
+
+```powershell
+docker compose exec -T airflow-scheduler spark-submit --master spark://spark-master:7077 --deploy-mode client --packages io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4 --conf spark.executorEnv.PYTHONPATH=/opt/pitchflow /opt/pitchflow/spark/jobs/bronze_to_silver.py --pipeline-run-id replay-001 --bronze-record-id <bronze-record-id>
+docker compose exec -T airflow-scheduler spark-submit --master spark://spark-master:7077 --deploy-mode client --packages io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4 --conf spark.executorEnv.PYTHONPATH=/opt/pitchflow /opt/pitchflow/spark/jobs/silver_to_gold.py --pipeline-run-id replay-001 --match-id <match-id>
+docker compose exec -T airflow-scheduler spark-submit --master spark://spark-master:7077 --deploy-mode client --packages io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4 --conf spark.executorEnv.PYTHONPATH=/opt/pitchflow /opt/pitchflow/serving/publish_postgres/publish.py --pipeline-run-id replay-001
 ```
 
 ## Validation

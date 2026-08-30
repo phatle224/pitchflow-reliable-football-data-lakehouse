@@ -2,7 +2,7 @@
 
 ## Project overview
 
-PitchFlow is a design-first football data lakehouse project. The repository currently contains the approved product requirements and V1 implementation plan; no runtime pipeline code, Docker configuration, or dependency manifest exists yet.
+PitchFlow is a Docker Compose football data lakehouse. It ingests a pinned StatsBomb Open Data snapshot into Delta Lake tables on MinIO, applies Spark data-quality rules, and publishes selected Gold aggregates to PostgreSQL for Metabase.
 
 ## Repository map
 
@@ -17,6 +17,14 @@ PitchFlow is a design-first football data lakehouse project. The repository curr
 - `.agents/skills/` — repeatable, project-specific Codex workflows.
 - `scripts/validate_project.py` — repository harness validation entry point.
 - `tests/` — tests for repository tooling and, later, product code.
+
+## Runtime implementation
+
+- `ingestion/` contains source adapters, deterministic Bronze envelopes, and chaos variants.
+- `spark/` contains the shared Spark/Delta runtime and Bronze-to-Silver / Silver-to-Gold jobs.
+- `serving/` publishes Gold tables to PostgreSQL.
+- `airflow/dags/` defines the orchestrated daily pipeline.
+- `docker/` and `docker-compose.yml` define the local service topology.
 
 ## Source of truth
 
@@ -52,4 +60,4 @@ git diff --check
 git diff
 ```
 
-No application lint, formatter, type checker, or integration-test command exists yet. Add them to this guide only after they are configured and verified.
+No formatter, type checker, or CI pipeline is configured yet. The Docker smoke test is documented in `docs/testing.md`.

@@ -10,10 +10,9 @@ from airflow.operators.bash import BashOperator
 
 SPARK_PACKAGES = "io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4"
 SPARK_SUBMIT = (
-    "spark-submit --master spark://spark-master:7077 --deploy-mode client "
+    "cd /opt/pitchflow && spark-submit --master spark://spark-master:7077 --deploy-mode client "
     "--packages " + SPARK_PACKAGES + " "
     "--conf spark.executorEnv.PYTHONPATH=/opt/pitchflow "
-    "--conf spark.driver.extraJavaOptions='-Dlog4j.configuration=log4j2.properties' "
 )
 RUN_ID = "{{ run_id }}"
 
