@@ -60,10 +60,10 @@ The system must preserve raw source data, detect quality issues, isolate invalid
 1. Build an end-to-end **ELT pipeline**.
 2. Use a **Bronze–Silver–Gold Medallion Architecture**.
 3. Preserve Bronze data as an append-only source of truth.
-4. Support multiple source types:
-   - API
-   - generated data
-   - files
+4. Support multiple source styles across the roadmap:
+   - version-pinned open-data snapshots
+   - controlled generated variants
+   - later API and CSV sources
 5. Perform transformations using PySpark.
 6. Implement configurable data quality rules.
 7. Route invalid records into a Quarantine layer.
@@ -274,70 +274,35 @@ This preserves Bronze as the source of truth and allows historical replay.
 
 # 7. Data Sources
 
-The project should use at least three source styles.
+V1 uses one real, version-pinned external dataset and controlled synthetic variants. This gives the pipeline internally consistent entity and event relationships while still exercising unreliable upstream-data scenarios.
 
-## 7.1 Football API
+## 7.1 V1 Primary Source — StatsBomb Open Data
 
-Possible data:
-
-- fixtures
-- match results
-- lineups
-- competitions
-- teams
-- match status
-
-Example schema:
+The V1 dataset is the FIFA World Cup 2022 snapshot from the [StatsBomb Open Data repository](https://github.com/hudl/open-data):
 
 ```text
-match_id
-season_id
-competition_id
-kickoff_time
-home_team_id
-away_team_id
-home_score
-away_score
-status
+competition_id = 43
+season_id = 106
 ```
 
-## 7.2 Static Files
-
-Example files:
-
-### `teams.csv`
+The snapshot contains the following raw JSON source objects:
 
 ```text
-team_id
-team_name
-country
-founded_year
-stadium_id
+competitions.json
+matches/43/106.json
+lineups/<match_id>.json
+events/<match_id>.json
 ```
 
-### `players.csv`
+The ingestion process must resolve and store the source repository commit SHA, source URI, retrieval timestamp, and source-object path in Bronze metadata. Raw payloads are retained exactly as received. Teams, players, stadiums, matches, lineups, and events are derived after Bronze from the related JSON objects.
 
-```text
-player_id
-player_name
-team_id
-position
-date_of_birth
-nationality
-```
+When analysis or insights based on this data are published or shared, PitchFlow must credit StatsBomb and follow the source terms for attribution.
 
-### `stadiums.csv`
+## 7.2 Controlled Synthetic Event Variants
 
-```text
-stadium_id
-stadium_name
-city
-capacity
-```
+The generator starts from valid StatsBomb event records and injects controlled failures. It is a separate source label, not a replacement for the original event.
 
-## 7.3 Synthetic Match Events
-
-Generated events may include:
+Generated variants may include:
 
 ```text
 event_id
@@ -362,7 +327,11 @@ Possible event types:
 - OFFSIDE
 - SUBSTITUTION
 
-The synthetic generator will later evolve into a **Chaos Generator**.
+V1 supports a small deterministic set of variants for testing. The generator will later evolve into a configurable **Chaos Generator**.
+
+## 7.3 Optional Future Sources
+
+Live API and CSV ingestion are deferred until after V1. Candidate future sources include football-data.org for API ingestion and football-data.co.uk for historical CSV match results. They must be added only with documented licensing, source-specific contracts, and clear entity-key reconciliation with StatsBomb.
 
 ---
 
@@ -443,6 +412,8 @@ source_timestamp
 ingestion_timestamp
 pipeline_run_id
 raw_payload
+source_uri
+source_commit_sha
 ```
 
 Optional:
@@ -456,22 +427,13 @@ schema_version
 
 ## 9.3 Storage
 
-Initial implementation:
-
-```text
-Delta Lake
-└── local filesystem
-```
-
-Optional later version:
-
 ```text
 Delta Lake
 └── MinIO
     └── S3-compatible object storage
 ```
 
-MinIO is not required for V1.
+MinIO is required for V1. All Delta tables are stored in the `pitchflow` bucket using `s3a://pitchflow/<layer>/<entity>` paths.
 
 ---
 
@@ -1214,10 +1176,12 @@ Possible widgets:
 |---|---|
 | Orchestration | Apache Airflow |
 | Ingestion | Python |
-| Synthetic data | Faker |
+| Raw football data | StatsBomb Open Data — FIFA World Cup 2022 snapshot |
+| Synthetic data | Controlled fault generator based on valid StatsBomb events |
 | Processing | PySpark |
 | Table format | Delta Lake |
 | Data organization | Bronze / Silver / Gold |
+| Object storage | MinIO (S3-compatible) |
 | Serving | PostgreSQL |
 | Dashboard | Metabase |
 | Containers | Docker / Docker Compose |
@@ -1227,7 +1191,6 @@ Possible widgets:
 
 | Capability | Technology |
 |---|---|
-| Object storage | MinIO |
 | Metrics | OpenTelemetry |
 | Metric store | Prometheus |
 | Monitoring | Grafana |
@@ -1243,8 +1206,7 @@ Example mapping:
 
 | Local Project | Cloud Equivalent |
 |---|---|
-| Delta + local disk | Delta + cloud object storage |
-| MinIO | AWS S3 |
+| Delta Lake + MinIO | Delta Lake + AWS S3 |
 | Airflow Docker | AWS MWAA / managed Airflow |
 | PySpark local | Databricks / EMR |
 | PostgreSQL Docker | RDS PostgreSQL |
@@ -1266,8 +1228,7 @@ pitchflow/
 │   └── plugins/
 │
 ├── ingestion/
-│   ├── api/
-│   ├── files/
+│   ├── statsbomb/
 │   ├── generator/
 │   └── common/
 │
@@ -1324,7 +1285,7 @@ Goal:
 Scope:
 
 ```text
-Football API / Files / Faker
+StatsBomb Open Data snapshot / controlled synthetic variants
         ↓
 Python ingestion
         ↓
@@ -1396,7 +1357,8 @@ Goal:
 V1 is complete when:
 
 - [ ] Airflow can trigger the full daily DAG.
-- [ ] At least two distinct source types are ingested.
+- [ ] Both the StatsBomb snapshot and controlled synthetic source variants are ingested with distinct source labels.
+- [ ] The pinned StatsBomb World Cup 2022 snapshot is ingested with source URI and commit-SHA lineage.
 - [ ] Raw records are stored in Bronze.
 - [ ] Bronze is append-only.
 - [ ] PySpark transforms Bronze into Silver.
@@ -1460,7 +1422,7 @@ The implementation and README should clearly answer:
 13. What makes the pipeline fail versus continue with warning?
 14. Why is PostgreSQL used as a serving layer?
 15. Why is Airflow not used as the processing engine?
-16. What would change if local storage were migrated to S3/MinIO?
+16. What would change if MinIO storage were migrated to AWS S3?
 17. How can a pipeline technically succeed while the data is still unhealthy?
 18. How is data freshness measured?
 
@@ -1482,11 +1444,11 @@ Complete each version before adding another infrastructure component.
 
 Risk:
 
-Free football APIs may have quotas or availability limitations.
+Future live football APIs may have quotas or availability limitations.
 
 Mitigation:
 
-Persist Bronze responses and maintain synthetic/file-based fallback sources.
+V1 uses a pinned StatsBomb snapshot with no live API dependency. Persist future API responses in Bronze and keep the snapshot as a deterministic fallback.
 
 ## Data Licensing
 
@@ -1496,7 +1458,7 @@ Football datasets may have redistribution limitations.
 
 Mitigation:
 
-Use public/open datasets where possible and document the source/license. Synthetic data can replace restricted datasets in the public repository.
+Use public/open datasets where possible and document source terms and attribution. V1 uses StatsBomb Open Data; published analysis must credit StatsBomb according to its terms. Keep a source manifest rather than committing unverified or restricted third-party raw datasets.
 
 ## Local Resource Constraints
 

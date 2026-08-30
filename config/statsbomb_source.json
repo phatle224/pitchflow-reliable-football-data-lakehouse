@@ -1,0 +1,10 @@
+{
+  "source": "statsbomb_open_data",
+  "repository_url": "https://github.com/hudl/open-data",
+  "raw_base_url": "https://raw.githubusercontent.com/hudl/open-data/b0bc9f22dd77c206ddedc1d742893b3bbe64baec/data",
+  "commit_sha": "b0bc9f22dd77c206ddedc1d742893b3bbe64baec",
+  "competition_id": 43,
+  "season_id": 106,
+  "competition_name": "FIFA World Cup",
+  "season_name": "2022"
+}

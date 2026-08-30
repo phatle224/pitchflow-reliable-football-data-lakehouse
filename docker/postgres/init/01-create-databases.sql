@@ -1,0 +1,2 @@
+CREATE DATABASE pitchflow;
+CREATE DATABASE metabase;

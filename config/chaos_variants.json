@@ -1,0 +1,10 @@
+{
+  "enabled_by_default": false,
+  "variants": [
+    "exact_duplicate",
+    "missing_event_id",
+    "invalid_minute",
+    "event_correction",
+    "late_event"
+  ]
+}

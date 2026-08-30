@@ -4,7 +4,7 @@
 
 Update [PitchFlow_PRD.md](D:\project\pitchflow-reliable-football-data-lakehouse\PitchFlow_PRD.md) in English so V1 is an implementable Docker Compose lakehouse: Delta tables stored in MinIO; Airflow orchestrates Spark; only Gold datasets publish to PostgreSQL/Metabase.
 
-V1 uses static CSV master data plus generated match events. API ingestion, a dedicated replay DAG, chaos generation, and observability stack remain later phases.
+V1 uses a version-pinned StatsBomb Open Data FIFA World Cup 2022 JSON snapshot (`competition_id=43`, `season_id=106`) plus controlled synthetic/chaos event variants. Live API ingestion, a dedicated replay DAG, and broad observability remain later phases.
 
 ## PRD and architecture changes
 
@@ -14,7 +14,8 @@ V1 uses static CSV master data plus generated match events. API ingestion, a ded
   - `s3a://pitchflow/silver/<entity>`
   - `s3a://pitchflow/gold/<dataset>`
   - `s3a://pitchflow/quarantine/<entity>`
-- Define V1 input datasets: `teams.csv`, `players.csv`, `stadiums.csv`, `matches.csv`, and synthetic `match_events`.
+- Define V1 source objects: `competitions.json`, `matches/43/106.json`, `lineups/<match_id>.json`, and `events/<match_id>.json` from a StatsBomb snapshot pinned to a commit SHA. Derive teams, players, stadiums, matches, lineups, and match events from those raw objects.
+- Generate controlled duplicate, malformed, correction, and late-event variants from valid StatsBomb events. Mark them as synthetic source records and retain the original raw event unchanged.
 - Define Delta tables:
   - Bronze/Silver: matches, match events, teams, players, stadiums.
   - Gold/PostgreSQL: `gold_match_summary`, `gold_team_performance`, `gold_event_distribution`.
@@ -47,13 +48,14 @@ V1 uses static CSV master data plus generated match events. API ingestion, a ded
 
 ## Test and acceptance plan
 
-- Validate that a full Docker Compose stack can ingest CSV and generated events through Bronze, Silver, Gold, PostgreSQL, and Metabase.
+- Validate that a full Docker Compose stack can ingest the pinned StatsBomb snapshot and generated event variants through Bronze, Silver, Gold, PostgreSQL, and Metabase.
 - Re-run the same logical batch and verify no duplicate Silver, Gold, or PostgreSQL business rows.
 - Verify exact duplicate events are measured but not duplicated in Silver.
 - Verify malformed/missing-required-field events enter Quarantine with a valid Bronze reference while healthy records continue.
 - Verify an event-ID correction is quarantined rather than overwriting Silver.
 - Verify a valid late event updates the affected match’s Gold results and PostgreSQL rows only.
 - Verify MinIO contains Delta Parquet files and `_delta_log` for each table.
+- Verify Bronze lineage contains the StatsBomb URI and resolved source commit SHA.
 - Update V1 acceptance criteria and README/documentation requirements to demonstrate all behaviors above.
 
 ## Assumptions locked
@@ -61,6 +63,6 @@ V1 uses static CSV master data plus generated match events. API ingestion, a ded
 - PRD remains English; discussion and implementation guidance can be Vietnamese.
 - Docker Compose is the only supported local runtime for V1.
 - MinIO is mandatory in V1; local-disk Delta is not a supported primary profile.
-- V1 uses CSV + synthetic events, not a live football API.
+- V1 uses a pinned StatsBomb Open Data JSON snapshot plus controlled synthetic variants, not a live football API or independently maintained CSV master data.
 - V1 has documented manual replay, not a dedicated replay DAG.
 - V2 adds controlled correction processing, watermark refinement, configurable replay DAG, and broader reliability automation.

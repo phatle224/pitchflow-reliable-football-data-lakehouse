@@ -9,6 +9,7 @@ No application source code exists yet, so this document records only approved ar
 - Use lowercase snake_case for dataset, job, configuration, and Python module names, matching the approved plan.
 - Use business keys (`event_id`, `match_id`, and equivalent entity IDs) for deduplication and idempotent writes.
 - Preserve raw input and lineage in Bronze. Perform business validation, normalization, and deduplication only after Bronze.
+- Record the external source URI, resolved source commit SHA, and retrieval timestamp for every StatsBomb snapshot. Credit StatsBomb in user-facing data provenance documentation.
 - Write valid transformed records to Silver and invalid records to Quarantine with actionable rule/error metadata and a `bronze_record_id` reference.
 - Keep Gold business-ready and publish only dashboard-required Gold data to PostgreSQL.
 - Propagate `pipeline_run_id` through each data-processing stage.

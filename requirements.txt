@@ -1,0 +1,4 @@
+# Dependencies for local job development. Docker images install the same pinned runtime set.
+pyspark==3.5.3
+delta-spark==3.2.0
+psycopg[binary]==3.2.3

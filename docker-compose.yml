@@ -1,0 +1,158 @@
+name: pitchflow
+
+x-pitchflow-env: &pitchflow-env
+  PITCHFLOW_MINIO_BUCKET: ${PITCHFLOW_MINIO_BUCKET:-pitchflow}
+  PITCHFLOW_MINIO_ENDPOINT: ${PITCHFLOW_MINIO_ENDPOINT:-http://minio:9000}
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  PITCHFLOW_POSTGRES_HOST: ${PITCHFLOW_POSTGRES_HOST:-postgres}
+  PITCHFLOW_POSTGRES_PORT: ${PITCHFLOW_POSTGRES_PORT:-5432}
+  PITCHFLOW_POSTGRES_DB: ${PITCHFLOW_POSTGRES_DB:-pitchflow}
+  PITCHFLOW_POSTGRES_USER: ${PITCHFLOW_POSTGRES_USER:-pitchflow}
+  PITCHFLOW_POSTGRES_PASSWORD: ${PITCHFLOW_POSTGRES_PASSWORD:-pitchflow}
+  PYTHONPATH: /opt/pitchflow
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  environment:
+    <<: *pitchflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/pitchflow/airflow/dags
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://pitchflow:${POSTGRES_PASSWORD:-pitchflow}@postgres:5432/airflow
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+    AIRFLOW_ADMIN_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+    AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+    AIRFLOW_ADMIN_EMAIL: ${AIRFLOW_ADMIN_EMAIL:-airflow@example.local}
+  volumes:
+    - ./:/opt/pitchflow
+    - airflow-logs:/opt/airflow/logs
+  working_dir: /opt/pitchflow
+  depends_on:
+    postgres:
+      condition: service_healthy
+    minio-init:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pitchflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pitchflow}
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-02-21T16-00-46Z
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      PITCHFLOW_MINIO_BUCKET: ${PITCHFLOW_MINIO_BUCKET:-pitchflow}
+    entrypoint: >-
+      /bin/sh -c '
+      until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do sleep 2; done;
+      mc mb --ignore-existing local/"$$PITCHFLOW_MINIO_BUCKET";'
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: docker/spark/Dockerfile
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.master.Master"]
+    environment:
+      <<: *pitchflow-env
+      SPARK_NO_DAEMONIZE: "true"
+    volumes:
+      - ./:/opt/pitchflow:ro
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+
+  spark-worker:
+    build:
+      context: .
+      dockerfile: docker/spark/Dockerfile
+    command: ["/opt/spark/bin/spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
+    environment:
+      <<: *pitchflow-env
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_WORKER_CORES: "2"
+      SPARK_WORKER_MEMORY: 2G
+    volumes:
+      - ./:/opt/pitchflow:ro
+    depends_on:
+      - spark-master
+
+  airflow-init:
+    <<: *airflow-common
+    command: >-
+      bash -c 'airflow db migrate &&
+      airflow users create
+      --username "$${AIRFLOW_ADMIN_USERNAME:-airflow}"
+      --password "$${AIRFLOW_ADMIN_PASSWORD:-airflow}"
+      --firstname PitchFlow
+      --lastname Admin
+      --role Admin
+      --email "$${AIRFLOW_ADMIN_EMAIL:-airflow@example.local}"'
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8088:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  metabase:
+    image: metabase/metabase:v0.53.8
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_HOST: postgres
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${POSTGRES_USER:-pitchflow}
+      MB_DB_PASS: ${POSTGRES_PASSWORD:-pitchflow}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  minio-data:
+  airflow-logs:

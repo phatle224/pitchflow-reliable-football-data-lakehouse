@@ -7,7 +7,8 @@ The repository has no runtime implementation yet. This document describes the ap
 ## Component boundaries
 
 ```text
-CSV reference data + synthetic match events
+StatsBomb Open Data FIFA World Cup 2022 JSON snapshot
+        + controlled synthetic/chaos event variants
         -> Python ingestion
         -> Bronze Delta tables on MinIO
         -> Spark transformation and data-quality checks
@@ -21,6 +22,7 @@ Airflow schedules and coordinates each stage.
 ```
 
 - **Ingestion** performs accessibility, parsing, and envelope checks only. It attaches lineage metadata and writes Bronze.
+- **External source** is the StatsBomb World Cup 2022 snapshot. Competition, match, lineup, and event JSON files produce the reference entities and match events; the source snapshot must be pinned to a Git commit SHA.
 - **Bronze** is the append-only raw source of truth. It contains raw payloads and ingestion metadata.
 - **Spark transformation and quality** parses, standardizes, validates, deduplicates, and routes invalid records to Quarantine.
 - **Silver** contains typed, conformed, deduplicated entities. **Gold** contains analytics-ready aggregates.
@@ -59,3 +61,4 @@ Bronze and Silver entities are matches, match events, teams, players, and stadiu
 - Same event ID with a changed payload is quarantined for review in V1; it is not silently overwritten.
 - Valid late events are accepted, marked, and cause the affected match aggregates to be rebuilt.
 - Quarantine references the original Bronze record; it never becomes a second raw-data source of truth.
+- Controlled synthetic records start from valid StatsBomb events and inject known failures; they are labeled with a distinct source and never replace the original event payload.

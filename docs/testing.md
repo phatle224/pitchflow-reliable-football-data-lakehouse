@@ -2,16 +2,17 @@
 
 ## Current support
 
-The repository currently contains harness tests only. They use Python's standard-library `unittest` and need no dependency installation.
+The repository currently contains harness and source-contract tests. They use Python's standard-library `unittest` and need no dependency installation.
 
 Run them from the repository root:
 
 ```powershell
 python -m unittest discover -s tests -v
 python scripts/validate_project.py
+docker compose config --quiet
 ```
 
-`validate_project.py` checks the harness documentation contract, repository-local Skill metadata, and committed-secret hygiene. It is intentionally not a substitute for runtime pipeline testing.
+`validate_project.py` checks the harness documentation contract, repository-local Skill metadata, and committed-secret hygiene. `docker compose config --quiet` checks Compose interpolation and topology. Neither substitutes for a full Spark/MinIO pipeline run.
 
 ## CI status
 
