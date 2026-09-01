@@ -260,6 +260,10 @@ Schema: public
 SSL: disabled for local development
 ```
 
+For a client running on the host (for example DBeaver), use `localhost:15432`.
+Docker maps host port `15432` to the container port `5432` to avoid collision
+with a native PostgreSQL service on Windows.
+
 ### PostgreSQL serving tables
 
 - `gold_match_summary`: one row per match with score, winner, shots, cards and event count.

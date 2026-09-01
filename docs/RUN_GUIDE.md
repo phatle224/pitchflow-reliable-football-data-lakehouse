@@ -109,7 +109,7 @@ Expected: `postgres` healthy; Airflow webserver/scheduler, Spark master/worker, 
 | Spark Master UI | http://localhost:8080 | Không cần login |
 | Metabase | http://localhost:3000 | Tạo admin account lần đầu |
 
-Metabase kết nối PostgreSQL bằng hostname Docker `postgres` (không dùng `localhost`): database `pitchflow`, port `5432`, user/password `pitchflow`/`pitchflow`, SSL tắt, schema `public`.
+Metabase kết nối PostgreSQL bằng hostname Docker `postgres` (không dùng `localhost`): database `pitchflow`, port `5432`, user/password `pitchflow`/`pitchflow`, SSL tắt, schema `public`. Ứng dụng chạy trực tiếp trên host (ví dụ DBeaver) dùng `localhost:5432` hoặc `127.0.0.1:5432`.
 
 ## 6. Airflow DAG và input
 
@@ -304,17 +304,29 @@ Trigger lại cùng logical input hoặc rerun failed task. Kỳ vọng:
 
 Để chứng minh bằng số liệu, lưu row counts trước rerun, rerun DAG, rồi chạy lại các câu lệnh ở mục 9. Đây là test quan trọng hơn việc chỉ kiểm tra task có màu xanh.
 
-## 13. Replay một Bronze record
+V2 cung cấp hai DAG riêng để vận hành Replay và Correction mà không cần chạy lệnh thủ công:
 
-V1 chưa có replay DAG riêng; replay là manual và dùng run ID mới. Các placeholder cần thay là `<bronze-record-id>`, `<match-id>` và `replay-001`:
+1. **DAG `pipeline_replay`**: Replay một hoặc nhiều `bronze_record_id` qua Silver $\rightarrow$ Gold $\rightarrow$ Serving.
+   - Trigger config:
+     ```json
+     {
+       "bronze_record_ids": ["<bronze-record-id>"],
+       "match_ids": ["<match-id>"],
+       "replay_reason": "Re-processing fixed raw payload"
+     }
+     ```
+2. **DAG `pipeline_resolve_correction`**: Xử lý phê duyệt/từ chối record bị Quarantine do thay đổi payload.
+   - Trigger config phê duyệt:
+     ```json
+     {
+       "quarantine_ids": ["<quarantine-id>"],
+       "action": "approve",
+       "resolution_note": "Verified correction",
+       "match_ids": ["<match-id>"]
+     }
+     ```
 
-```powershell
-docker compose exec -T airflow-scheduler spark-submit --master spark://spark-master:7077 --deploy-mode client --packages io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4 --conf spark.executorEnv.PYTHONPATH=/opt/pitchflow /opt/pitchflow/spark/jobs/bronze_to_silver.py --pipeline-run-id replay-001 --bronze-record-id <bronze-record-id>
-docker compose exec -T airflow-scheduler spark-submit --master spark://spark-master:7077 --deploy-mode client --packages io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4 --conf spark.executorEnv.PYTHONPATH=/opt/pitchflow /opt/pitchflow/spark/jobs/silver_to_gold.py --pipeline-run-id replay-001 --match-id <match-id>
-docker compose exec -T airflow-scheduler spark-submit --master spark://spark-master:7077 --deploy-mode client --packages io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4 --conf spark.executorEnv.PYTHONPATH=/opt/pitchflow /opt/pitchflow/serving/publish_postgres/publish.py --pipeline-run-id replay-001
-```
-
-Replay không sửa raw Bronze. Nếu record vẫn fail DQ, nó tiếp tục ở Quarantine; cần sửa rule/source mapping rồi dùng replay run mới.
+Replay không sửa raw Bronze; record tự động cập nhật trạng thái `REPROCESSED` trong Quarantine và tăng `retry_count` kèm audit log.
 
 ## 14. Chạy controlled chaos
 
@@ -378,7 +390,7 @@ docker compose exec -T airflow-scheduler airflow dags unpause pipeline_daily
 
 ### Metabase không kết nối PostgreSQL
 
-Trong form Metabase dùng host `postgres`, không dùng `localhost`. Xác nhận `postgres` healthy và database là `pitchflow`; `localhost:5432` chỉ dành cho ứng dụng chạy ngoài Docker.
+Trong form Metabase dùng host `postgres`, không dùng `localhost`. Xác nhận `postgres` healthy và database là `pitchflow`; ứng dụng chạy ngoài Docker (DBeaver/psql) dùng `localhost:5432` hoặc `127.0.0.1:5432`.
 
 ### Spark không đọc được MinIO
 
