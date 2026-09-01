@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from datetime import datetime, timezone
 
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, DoubleType, LongType, StringType, StructField, StructType, TimestampType
 
+from spark.common.alerts import send_webhook_alert
 from spark.common.delta import merge_by_keys, read_delta_or_none
+from spark.common.reliability import FAILED, WARNING, QualityAssessment, assess_quality, quality_thresholds_from_environment
 from spark.common.runtime import build_spark_session, table_path
 from spark.common.schemas import event_schema, lineup_schema, match_schema
 
@@ -24,9 +27,25 @@ QUALITY_METRICS_SCHEMA = StructType(
         StructField("duplicate_event_rows", LongType(), nullable=False),
         StructField("late_event_count", LongType(), nullable=False),
         StructField("dq_pass_rate", DoubleType(), nullable=False),
+        StructField("dq_quarantine_rate", DoubleType(), nullable=False),
+        StructField("dq_late_event_rate", DoubleType(), nullable=False),
+        StructField("dq_status", StringType(), nullable=False),
         StructField("measured_at", TimestampType(), nullable=False),
     ]
 )
+
+WATERMARK_SCHEMA = StructType(
+    [
+        StructField("source", StringType(), nullable=False),
+        StructField("entity", StringType(), nullable=False),
+        StructField("watermark_timestamp", TimestampType(), nullable=False),
+        StructField("pipeline_run_id", StringType(), nullable=False),
+        StructField("updated_at", TimestampType(), nullable=False),
+    ]
+)
+
+EVENT_WATERMARK_ENTITY = "match_events"
+DEFAULT_WATERMARK_SOURCE = "all"
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,6 +61,18 @@ def _run_bronze(spark, pipeline_run_id: str, bronze_record_ids: list[str]) -> Da
         return None
     if bronze_record_ids:
         return bronze.filter(F.col("bronze_record_id").isin(bronze_record_ids))
+    # V2: prefer watermark-based incremental read with lookback, fall back to run_id
+    lookback_hours = int(os.environ.get("PITCHFLOW_WATERMARK_LOOKBACK_HOURS", "0"))
+    if lookback_hours > 0:
+        watermark = _read_event_watermark(spark)
+        if watermark is not None:
+            from datetime import timedelta
+            cutoff = watermark - timedelta(hours=lookback_hours)
+            ingestion_filtered = bronze.filter(
+                F.to_timestamp(F.col("ingestion_timestamp")) >= F.lit(cutoff)
+            )
+            if not ingestion_filtered.rdd.isEmpty():
+                return ingestion_filtered
     return bronze.filter(F.col("pipeline_run_id") == pipeline_run_id)
 
 
@@ -196,6 +227,46 @@ def _quarantine_frame(dataframe: DataFrame, error_column: str) -> DataFrame:
     )
 
 
+def _read_event_watermark(spark, source: str = DEFAULT_WATERMARK_SOURCE):
+    """Read the persisted high watermark without depending on Silver table layout."""
+
+    watermarks = read_delta_or_none(spark, table_path("ops", "processing_watermarks"))
+    if watermarks is None:
+        return None
+    row = (
+        watermarks.filter(
+            (F.col("entity") == EVENT_WATERMARK_ENTITY)
+            & (F.col("source") == source)
+        )
+        .agg(F.max("watermark_timestamp").alias("watermark_timestamp"))
+        .first()
+    )
+    ts = row["watermark_timestamp"]
+    if ts is not None:
+        return ts
+    # Fallback: read any source watermark for this entity (V1 compatibility)
+    row = (
+        watermarks.filter(F.col("entity") == EVENT_WATERMARK_ENTITY)
+        .agg(F.max("watermark_timestamp").alias("watermark_timestamp"))
+        .first()
+    )
+    return row["watermark_timestamp"]
+
+
+def _write_event_watermark(spark, pipeline_run_id: str, existing_watermark, new_events: DataFrame, source: str = DEFAULT_WATERMARK_SOURCE) -> None:
+    """Persist a monotonic event watermark only after Silver has been written safely."""
+
+    candidate = new_events.agg(F.max("event_timestamp").alias("watermark_timestamp")).first()["watermark_timestamp"]
+    if candidate is None and existing_watermark is None:
+        return
+    watermark = max(value for value in (existing_watermark, candidate) if value is not None)
+    dataframe = spark.createDataFrame(
+        [(source, EVENT_WATERMARK_ENTITY, watermark, pipeline_run_id, datetime.now(timezone.utc))],
+        schema=WATERMARK_SCHEMA,
+    )
+    merge_by_keys(dataframe, table_path("ops", "processing_watermarks"), ["source", "entity"])
+
+
 def _process_events(spark, bronze: DataFrame, pipeline_run_id: str) -> dict[str, int]:
     events = _parse_events(bronze)
     if events is None:
@@ -271,7 +342,10 @@ def _process_events(spark, bronze: DataFrame, pipeline_run_id: str) -> dict[str,
     )
 
     existing = read_delta_or_none(spark, table_path("silver", "match_events"))
-    watermark = existing.agg(F.max("event_timestamp").alias("watermark")).first()["watermark"] if existing is not None else None
+    watermark = _read_event_watermark(spark)
+    if watermark is None and existing is not None:
+        # Compatibility fallback for a V1 table before the V2 watermark state exists.
+        watermark = existing.agg(F.max("event_timestamp").alias("watermark")).first()["watermark"]
     new_events = (
         prepared_events
         if existing is None
@@ -285,6 +359,7 @@ def _process_events(spark, bronze: DataFrame, pipeline_run_id: str) -> dict[str,
     late_count = silver_events.filter(F.col("is_late")).count()
     if not silver_events.rdd.isEmpty():
         merge_by_keys(silver_events, table_path("silver", "match_events"), ["event_id"], insert_only=True)
+    _write_event_watermark(spark, pipeline_run_id, watermark, silver_events)
 
     event_players = silver_events.filter(F.col("player_id").isNotNull()).select(
         "player_id", "player_name", "team_id", F.lit(None).cast("string").alias("position"), "pipeline_run_id"
@@ -308,8 +383,7 @@ def _process_events(spark, bronze: DataFrame, pipeline_run_id: str) -> dict[str,
     }
 
 
-def _write_quality_metrics(spark, pipeline_run_id: str, counts: dict[str, int]) -> None:
-    pass_rate = (counts["valid"] / counts["input"] * 100) if counts["input"] else 100.0
+def _write_quality_metrics(spark, pipeline_run_id: str, counts: dict[str, int], assessment: QualityAssessment) -> None:
     row = [
         (
             pipeline_run_id,
@@ -318,12 +392,33 @@ def _write_quality_metrics(spark, pipeline_run_id: str, counts: dict[str, int]) 
             counts["quarantined"],
             counts["duplicates"],
             counts["late"],
-            pass_rate,
+            assessment.pass_rate,
+            assessment.quarantine_rate,
+            assessment.late_event_rate,
+            assessment.overall_status,
             datetime.now(timezone.utc),
         )
     ]
     dataframe = spark.createDataFrame(row, schema=QUALITY_METRICS_SCHEMA)
     merge_by_keys(dataframe, table_path("ops", "quality_metrics"), ["pipeline_run_id"])
+
+
+def _enforce_quality_gate(pipeline_run_id: str, assessment: QualityAssessment) -> None:
+    status = assessment.overall_status
+    detail = (
+        f"pipeline_run_id={pipeline_run_id}; "
+        f"dq_pass_rate={assessment.pass_rate:.2f}%; "
+        f"quarantine_rate={assessment.quarantine_rate:.2f}%; "
+        f"late_event_rate={assessment.late_event_rate:.2f}%"
+    )
+    for warning in assessment.warnings:
+        logging.warning("DQ gate: %s", warning)
+    if status == WARNING:
+        send_webhook_alert(severity=WARNING, title="PitchFlow data quality", message=detail)
+    elif status == FAILED:
+        # The metric and Quarantine data are already persisted. Raising makes
+        # Airflow retry/alert the unhealthy batch without losing evidence.
+        raise RuntimeError(f"Data-quality gate failed: {detail}")
 
 
 def main() -> None:
@@ -341,8 +436,11 @@ def main() -> None:
         if lineup_players is not None and not lineup_players.rdd.isEmpty():
             merge_by_keys(lineup_players, table_path("silver", "players"), ["player_id"])
         counts = _process_events(spark, bronze, args.pipeline_run_id)
-        _write_quality_metrics(spark, args.pipeline_run_id, counts)
-        logging.info("Bronze-to-Silver complete for %s: %s", args.pipeline_run_id, counts)
+        thresholds = quality_thresholds_from_environment()
+        assessment = assess_quality(counts, thresholds)
+        _write_quality_metrics(spark, args.pipeline_run_id, counts, assessment)
+        _enforce_quality_gate(args.pipeline_run_id, assessment)
+        logging.info("Bronze-to-Silver complete for %s: %s; dq_status=%s", args.pipeline_run_id, counts, assessment.overall_status)
     finally:
         spark.stop()
 

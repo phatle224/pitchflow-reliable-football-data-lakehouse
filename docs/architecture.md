@@ -2,7 +2,7 @@
 
 ## Current status
 
-V1 is implemented as a local Docker Compose stack. The service topology, data contracts, and workflow below describe the running implementation.
+V1 is implemented as a local Docker Compose stack. V2 adds configurable quality gates, persisted processing watermarks, retry/alert policy, dedicated replay/correction DAGs, and correction-resolution audit fields. The service topology, data contracts, and workflow below describe the running implementation.
 
 ## Component boundaries
 
@@ -61,4 +61,7 @@ Bronze and Silver entities are matches, match events, teams, players, and stadiu
 - Same event ID with a changed payload is quarantined for review in V1; it is not silently overwritten.
 - Valid late events are accepted, marked, and cause the affected match aggregates to be rebuilt.
 - Quarantine references the original Bronze record; it never becomes a second raw-data source of truth.
+- DQ metrics have a configurable healthy/warning/failed gate. A failed gate preserves its metrics and Quarantine evidence before the Spark task fails.
+- `ops/processing_watermarks` stores a monotonic `match_events` high watermark independently of Silver table layout.
+- Event corrections require an explicit V2 review/approve/reject action. Approval updates the existing Silver event only after revalidation, then rebuilds Gold.
 - Controlled synthetic records start from valid StatsBomb events and inject known failures; they are labeled with a distinct source and never replace the original event payload.

@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+INTERVIEW_GUIDE.md
 
 # Python tooling
 __pycache__/

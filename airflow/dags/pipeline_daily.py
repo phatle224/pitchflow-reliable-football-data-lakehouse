@@ -7,6 +7,7 @@ from datetime import datetime
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 
+from spark.common.orchestration import airflow_default_args
 
 SPARK_PACKAGES = "io.delta:delta-spark_2.12:3.2.0,org.apache.hadoop:hadoop-aws:3.3.4"
 SPARK_SUBMIT = (
@@ -24,8 +25,9 @@ with DAG(
     schedule="@daily",
     catchup=False,
     max_active_runs=1,
+    default_args=airflow_default_args(),
     render_template_as_native_obj=False,
-    tags=["pitchflow", "delta", "football"],
+    tags=["pitchflow", "delta", "football", "v2-reliability"],
 ) as dag:
     ingest_raw = BashOperator(
         task_id="ingest_raw",
