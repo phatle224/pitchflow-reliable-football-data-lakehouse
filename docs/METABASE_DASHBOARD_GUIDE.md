@@ -89,3 +89,23 @@ Hệ thống cung cấp 3 bảng dữ liệu đã qua làm sạch và tổng h�
    - Đặt các biểu đồ cột `Bảng Xếp Hạng Điểm Số` và `Top Đội Ghi Bàn` ở giữa.
    - Đặt biểu đồ đường `Diễn Biến Sự Kiện Theo Mốc Phút` rộng ra ở phía dưới cùng.
 3. Nhấn nút **`Save`** ở góc trên bên phải Dashboard để lưu giao diện hoàn chỉnh.
+
+---
+
+## 4. Giao Diện Mẫu & Mã Nhúng Live Embed (Dashboard Preview)
+
+![Premier League 2015/16 Metabase Analytics Dashboard](images/dashboard_preview.png)
+
+### Mã iframe nhúng Live Dashboard vào Web application:
+Bật tính năng **Public Sharing** trong Metabase Dashboard settings và sử dụng đoạn mã iframe với public token đã tạo:
+
+```html
+<iframe
+    src="http://localhost:3000/public/dashboard/62fcdade1dd1122d03f804dde9fae39fff070b0c5874e94977442344005dca5f"
+    frameborder="0"
+    width="100%"
+    height="800"
+    allowtransparency>
+</iframe>
+```
+

@@ -269,6 +269,25 @@ Docker maps host port `5432` directly to container port `5432`.
 - `gold_team_performance`: one row per team with matches, wins/draws/losses, goals and points.
 - `gold_event_distribution`: event type by 15-minute bucket.
 
+### Metabase Football Analytics Dashboard Preview
+
+<div align="center">
+  <img src="docs/images/dashboard_preview.png" alt="Metabase Football Analytics Dashboard" width="100%" />
+</div>
+
+#### Live Public Embed Snippet
+To embed the live Metabase dashboard into a web application:
+
+```html
+<iframe
+    src="http://localhost:3000/public/dashboard/62fcdade1dd1122d03f804dde9fae39fff070b0c5874e94977442344005dca5f"
+    frameborder="0"
+    width="100%"
+    height="800"
+    allowtransparency>
+</iframe>
+```
+
 ### Data ownership
 
 PostgreSQL contains only selected Gold serving data. The authoritative Bronze, Silver, Quarantine, Gold and quality-metric tables remain in MinIO Delta storage. Named Docker volumes are `minio-data`, `postgres-data` and `airflow-logs`.

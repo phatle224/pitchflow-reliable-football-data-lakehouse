@@ -265,6 +265,25 @@ SSL: disabled
 - `gold_team_performance`: Chỉ số hiệu suất đội bóng (số trận, thắng/hòa/thua, bàn thắng/bàn thua, điểm số).
 - `gold_event_distribution`: Thống kê phân bố các loại sự kiện theo từng khung giờ 15 phút.
 
+### Giao Diện Metabase Dashboard Mẫu & Mã Nhúng
+
+<div align="center">
+  <img src="docs/images/dashboard_preview.png" alt="Metabase Football Analytics Dashboard" width="100%" />
+</div>
+
+#### Đoạn Mã Embed Live Dashboard (Public Token)
+Để nhúng giao diện Metabase Dashboard vào ứng dụng web của bạn:
+
+```html
+<iframe
+    src="http://localhost:3000/public/dashboard/62fcdade1dd1122d03f804dde9fae39fff070b0c5874e94977442344005dca5f"
+    frameborder="0"
+    width="100%"
+    height="800"
+    allowtransparency>
+</iframe>
+```
+
 ---
 
 ## Giám Sát & Xử Lý Sự Cố
