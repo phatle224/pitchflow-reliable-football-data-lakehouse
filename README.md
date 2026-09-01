@@ -272,7 +272,10 @@ Docker maps host port `5432` directly to container port `5432`.
 ### Metabase Football Analytics Dashboard Preview
 
 <div align="center">
-  <img src="docs/images/dashboard_preview.png" alt="Metabase Football Analytics Dashboard" width="100%" />
+  <a href="http://localhost:3000/public/dashboard/62fcdade1dd1122d03f804dde9fae39fff070b0c5874e94977442344005dca5f" target="_blank">
+    <img src="docs/images/dashboard_preview.png" alt="Metabase Football Analytics Dashboard" width="100%" />
+  </a>
+  <p><em>Click image to open Metabase Public Dashboard (Requires local Metabase running)</em></p>
 </div>
 
 #### Live Public Embed Snippet

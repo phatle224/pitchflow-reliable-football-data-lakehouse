@@ -268,7 +268,10 @@ SSL: disabled
 ### Giao Diện Metabase Dashboard Mẫu & Mã Nhúng
 
 <div align="center">
-  <img src="docs/images/dashboard_preview.png" alt="Metabase Football Analytics Dashboard" width="100%" />
+  <a href="http://localhost:3000/public/dashboard/62fcdade1dd1122d03f804dde9fae39fff070b0c5874e94977442344005dca5f" target="_blank">
+    <img src="docs/images/dashboard_preview.png" alt="Metabase Football Analytics Dashboard" width="100%" />
+  </a>
+  <p><em>Nhấn vào ảnh để mở Metabase Public Dashboard (Cần bật dịch vụ Metabase cục bộ)</em></p>
 </div>
 
 #### Đoạn Mã Embed Live Dashboard (Public Token)
