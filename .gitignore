@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 INTERVIEW_GUIDE.md
+interview/
 
 # Python tooling
 __pycache__/
