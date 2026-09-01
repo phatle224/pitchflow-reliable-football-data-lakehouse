@@ -7,7 +7,7 @@ V1 is implemented as a local Docker Compose stack. V2 adds configurable quality 
 ## Component boundaries
 
 ```text
-StatsBomb Open Data FIFA World Cup 2022 JSON snapshot
+StatsBomb Open Data Premier League 2015/16 JSON snapshot
         + controlled synthetic/chaos event variants
         -> Python ingestion
         -> Bronze Delta tables on MinIO
@@ -22,7 +22,7 @@ Airflow schedules and coordinates each stage.
 ```
 
 - **Ingestion** performs accessibility, parsing, and envelope checks only. It attaches lineage metadata and writes Bronze.
-- **External source** is the StatsBomb World Cup 2022 snapshot. Competition, match, lineup, and event JSON files produce the reference entities and match events; the source snapshot must be pinned to a Git commit SHA.
+- **External source** is the pinned StatsBomb Premier League 2015/16 snapshot (competition 2, season 27). Competition, match, lineup, and event JSON files produce the reference entities and match events; the source snapshot must be pinned to a Git commit SHA. The previous World Cup manifest remains available as an explicit alternate profile.
 - **Bronze** is the append-only raw source of truth. It contains raw payloads and ingestion metadata.
 - **Spark transformation and quality** parses, standardizes, validates, deduplicates, and routes invalid records to Quarantine.
 - **Silver** contains typed, conformed, deduplicated entities. **Gold** contains analytics-ready aggregates.

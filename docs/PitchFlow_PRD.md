@@ -278,18 +278,18 @@ V1 uses one real, version-pinned external dataset and controlled synthetic varia
 
 ## 7.1 V1 Primary Source — StatsBomb Open Data
 
-The V1 dataset is the FIFA World Cup 2022 snapshot from the [StatsBomb Open Data repository](https://github.com/hudl/open-data):
+The active dataset is the Premier League 2015/16 snapshot from the [StatsBomb Open Data repository](https://github.com/hudl/open-data):
 
 ```text
-competition_id = 43
-season_id = 106
+competition_id = 2
+season_id = 27
 ```
 
 The snapshot contains the following raw JSON source objects:
 
 ```text
 competitions.json
-matches/43/106.json
+matches/2/27.json
 lineups/<match_id>.json
 events/<match_id>.json
 ```
@@ -1176,7 +1176,7 @@ Possible widgets:
 |---|---|
 | Orchestration | Apache Airflow |
 | Ingestion | Python |
-| Raw football data | StatsBomb Open Data — FIFA World Cup 2022 snapshot |
+| Raw football data | StatsBomb Open Data — Premier League 2015/16 snapshot (380 matches) |
 | Synthetic data | Controlled fault generator based on valid StatsBomb events |
 | Processing | PySpark |
 | Table format | Delta Lake |
@@ -1358,7 +1358,7 @@ V1 is complete when:
 
 - [ ] Airflow can trigger the full daily DAG.
 - [ ] Both the StatsBomb snapshot and controlled synthetic source variants are ingested with distinct source labels.
-- [ ] The pinned StatsBomb World Cup 2022 snapshot is ingested with source URI and commit-SHA lineage.
+- [ ] The pinned StatsBomb Premier League 2015/16 snapshot is ingested with source URI and commit-SHA lineage.
 - [ ] Raw records are stored in Bronze.
 - [ ] Bronze is append-only.
 - [ ] PySpark transforms Bronze into Silver.

@@ -82,6 +82,18 @@ class StatsBombSnapshotTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 StatsBombSource.from_file(manifest)
 
+    def test_active_manifest_is_pinned_premier_league_profile(self) -> None:
+        manifest = StatsBombSource.from_file(Path("config/statsbomb_source.json"))
+
+        self.assertEqual("Premier League", manifest.competition_name)
+        self.assertEqual(2, manifest.competition_id)
+        self.assertEqual(27, manifest.season_id)
+        self.assertEqual(
+            "https://raw.githubusercontent.com/hudl/open-data/"
+            "b0bc9f22dd77c206ddedc1d742893b3bbe64baec/data/matches/2/27.json",
+            manifest.url_for("matches/2/27.json"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

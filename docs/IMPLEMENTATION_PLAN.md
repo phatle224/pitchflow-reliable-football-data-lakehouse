@@ -4,7 +4,7 @@
 
 Update [PitchFlow_PRD.md](D:\project\pitchflow-reliable-football-data-lakehouse\PitchFlow_PRD.md) in English so V1 is an implementable Docker Compose lakehouse: Delta tables stored in MinIO; Airflow orchestrates Spark; only Gold datasets publish to PostgreSQL/Metabase.
 
-V1 uses a version-pinned StatsBomb Open Data FIFA World Cup 2022 JSON snapshot (`competition_id=43`, `season_id=106`) plus controlled synthetic/chaos event variants. Live API ingestion, a dedicated replay DAG, and broad observability remain later phases.
+V1 uses a version-pinned StatsBomb Open Data Premier League 2015/16 JSON snapshot (`competition_id=2`, `season_id=27`) plus controlled synthetic/chaos event variants. The snapshot contains 380 matches with event-level data. Live API ingestion and multi-season support remain later phases.
 
 ## PRD and architecture changes
 
@@ -14,7 +14,7 @@ V1 uses a version-pinned StatsBomb Open Data FIFA World Cup 2022 JSON snapshot (
   - `s3a://pitchflow/silver/<entity>`
   - `s3a://pitchflow/gold/<dataset>`
   - `s3a://pitchflow/quarantine/<entity>`
-- Define V1 source objects: `competitions.json`, `matches/43/106.json`, `lineups/<match_id>.json`, and `events/<match_id>.json` from a StatsBomb snapshot pinned to a commit SHA. Derive teams, players, stadiums, matches, lineups, and match events from those raw objects.
+- Define V1 source objects: `competitions.json`, `matches/2/27.json`, `lineups/<match_id>.json`, and `events/<match_id>.json` from a StatsBomb snapshot pinned to a commit SHA. Derive teams, players, stadiums, matches, lineups, and match events from those raw objects.
 - Generate controlled duplicate, malformed, correction, and late-event variants from valid StatsBomb events. Mark them as synthetic source records and retain the original raw event unchanged.
 - Define Delta tables:
   - Bronze/Silver: matches, match events, teams, players, stadiums.
@@ -63,6 +63,6 @@ V1 uses a version-pinned StatsBomb Open Data FIFA World Cup 2022 JSON snapshot (
 - PRD remains English; discussion and implementation guidance can be Vietnamese.
 - Docker Compose is the only supported local runtime for V1.
 - MinIO is mandatory in V1; local-disk Delta is not a supported primary profile.
-- V1 uses a pinned StatsBomb Open Data JSON snapshot plus controlled synthetic variants, not a live football API or independently maintained CSV master data.
+- V1 uses a pinned StatsBomb Open Data Premier League JSON snapshot plus controlled synthetic variants, not a live football API or independently maintained CSV master data. The former World Cup profile is retained as an alternate manifest.
 - V1 has documented manual replay, not a dedicated replay DAG.
 - V2 adds controlled correction processing, watermark refinement, configurable replay DAG, and broader reliability automation.

@@ -20,7 +20,7 @@ RUN_ID = "{{ run_id }}"
 
 with DAG(
     dag_id="pipeline_daily",
-    description="Ingest a pinned StatsBomb snapshot and publish Gold football analytics.",
+    description="Ingest the pinned StatsBomb Premier League snapshot and publish Gold football analytics.",
     start_date=datetime(2025, 1, 1),
     schedule="@daily",
     catchup=False,

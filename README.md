@@ -36,7 +36,7 @@
 
 ## Project Overview
 
-PitchFlow is a local, Docker Compose football data lakehouse built to demonstrate reliable ELT rather than only happy-path analytics. It ingests a version-pinned StatsBomb Open Data FIFA World Cup 2022 snapshot, preserves source payloads in an append-only Bronze layer, validates and conforms them with PySpark into Silver, builds Gold analytics aggregates, and publishes selected Gold datasets to PostgreSQL for Metabase.
+PitchFlow is a local, Docker Compose football data lakehouse built to demonstrate reliable ELT rather than only happy-path analytics. It ingests a version-pinned StatsBomb Open Data Premier League 2015/16 snapshot (380 matches), preserves source payloads in an append-only Bronze layer, validates and conforms them with PySpark into Silver, builds Gold analytics aggregates, and publishes selected Gold datasets to PostgreSQL for Metabase.
 
 The reliability design intentionally exercises upstream problems: exact duplicate events, malformed records, changed-payload corrections and late-arriving events. Invalid data is routed to Quarantine with a reference to its Bronze record; it is not silently discarded. `pipeline_run_id`, deterministic record IDs, Delta merges and PostgreSQL UPSERTs make retries and reruns safe.
 
@@ -50,7 +50,7 @@ The platform is fully containerized. MinIO acts as the local S3-compatible objec
 
 ```mermaid
 flowchart TB
-    SOURCE["Pinned StatsBomb World Cup 2022 snapshot"]
+    SOURCE["Pinned StatsBomb Premier League 2015/16 snapshot"]
     CHAOS["Controlled synthetic variants<br/>duplicate / malformed / correction / late"]
     INGEST["Python ingestion adapter<br/>raw envelope + lineage"]
 
@@ -100,7 +100,7 @@ flowchart TB
 
 ### 1. Reproducible source ingestion
 
-The V1 source is pinned to StatsBomb Open Data commit `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` for FIFA World Cup 2022 (`competition_id=43`, `season_id=106`). The URI, commit SHA, source object and retrieval metadata are persisted in Bronze.
+The active source is pinned to StatsBomb Open Data commit `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` for Premier League 2015/16 (`competition_id=2`, `season_id=27`). The URI, commit SHA, source object and retrieval metadata are persisted in Bronze. The prior World Cup profile remains available at `config/statsbomb_world_cup_2022.json`.
 
 ### 2. Reliable Bronze–Silver–Gold ELT
 
@@ -156,7 +156,7 @@ These values are evidence from the documented smoke run, not a fixed contract fo
 ### Source and language
 
 - **Python**: source adapter, deterministic envelopes, chaos variants and orchestration entry points.
-- **StatsBomb Open Data**: pinned FIFA World Cup 2022 JSON snapshot.
+- **StatsBomb Open Data**: pinned Premier League 2015/16 JSON snapshot (380 matches, event-level data).
 
 ## Directory Structure
 

@@ -1,6 +1,6 @@
 # PitchFlow — Hướng dẫn chạy project
 
-Tài liệu này là runbook thực hành cho V1: chuẩn bị môi trường, khởi động Docker Compose, truyền input, chạy pipeline, kiểm tra output ở MinIO/PostgreSQL/Metabase, replay và xử lý lỗi thường gặp.
+Tài liệu này là runbook thực hành cho pipeline Premier League 2015/16: chuẩn bị môi trường, khởi động Docker Compose, truyền input, chạy pipeline, kiểm tra output ở MinIO/PostgreSQL/Metabase, replay và xử lý lỗi thường gặp.
 
 ## 1. Tổng quan input → output
 
@@ -70,6 +70,7 @@ Các local defaults chính:
 | `MINIO_ROOT_USER` | `minioadmin` | MinIO console/API |
 | `MINIO_ROOT_PASSWORD` | `minioadmin` | MinIO console/API |
 | `PITCHFLOW_MINIO_BUCKET` | `pitchflow` | Bucket Delta |
+| `PITCHFLOW_SOURCE_CONFIG` | `config/statsbomb_source.json` | Manifest source đang chạy (mặc định Premier League 2015/16) |
 | `PITCHFLOW_MINIO_ENDPOINT` | `http://minio:9000` | Spark trong Docker |
 | `POSTGRES_USER` | `pitchflow` | PostgreSQL |
 | `POSTGRES_PASSWORD` | `pitchflow` | PostgreSQL |
@@ -150,7 +151,7 @@ Airflow tự tạo `run_id`; DAG truyền giá trị đó thành `pipeline_run_i
 
 ### `ingest_raw`
 
-Input là `config/statsbomb_source.json`, gồm repository URL, raw base URL, commit SHA, competition `43` và season `106`.
+Input mặc định là `config/statsbomb_source.json`, gồm repository URL, raw base URL, commit SHA, competition `2` và season `27` (Premier League 2015/16, 380 matches). Có thể chọn profile World Cup cũ bằng `PITCHFLOW_SOURCE_CONFIG=config/statsbomb_world_cup_2022.json` hoặc option `--source-config`.
 
 Output:
 

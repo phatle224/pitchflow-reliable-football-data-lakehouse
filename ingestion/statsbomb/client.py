@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 from urllib.request import Request, urlopen
 
 from ingestion.common.records import SourceRecord, canonical_json
@@ -67,17 +67,19 @@ def _snapshot_record(
     )
 
 
-def fetch_snapshot_records(
+def iter_snapshot_records(
     source: StatsBombSource,
     *,
     match_limit: int | None = None,
     inject_chaos: bool = False,
     fetcher: JsonFetcher = fetch_json,
-) -> list[SourceRecord]:
-    """Return one immutable Bronze envelope per downloaded source file.
+) -> Iterator[SourceRecord]:
+    """Yield immutable Bronze envelopes as source files are downloaded.
 
     Events and lineups remain file-level raw payloads. This preserves the source
     representation while avoiding one Bronze row per event before Spark parsing.
+    Yielding allows the caller to commit bounded chunks instead of materializing
+    a full season of raw event JSON in the Spark driver's heap.
     """
 
     competition_path = "competitions.json"
@@ -86,20 +88,18 @@ def fetch_snapshot_records(
     matches = fetcher(source.url_for(matches_path))
     selected_matches = matches[:match_limit] if match_limit else matches
 
-    records = [
-        _snapshot_record(
-            source,
-            source_object="competitions",
-            relative_path=competition_path,
-            payload=competitions,
-        ),
-        _snapshot_record(
-            source,
-            source_object="matches",
-            relative_path=matches_path,
-            payload=selected_matches,
-        ),
-    ]
+    yield _snapshot_record(
+        source,
+        source_object="competitions",
+        relative_path=competition_path,
+        payload=competitions,
+    )
+    yield _snapshot_record(
+        source,
+        source_object="matches",
+        relative_path=matches_path,
+        payload=selected_matches,
+    )
 
     first_event_batch: tuple[str, list[dict[str, Any]]] | None = None
     for match in selected_matches:
@@ -109,37 +109,48 @@ def fetch_snapshot_records(
         event_path = f"events/{match_id}.json"
         lineups = fetcher(source.url_for(lineup_path))
         events = fetcher(source.url_for(event_path))
-        records.extend(
-            (
-                _snapshot_record(
-                    source,
-                    source_object="lineups",
-                    relative_path=lineup_path,
-                    payload=lineups,
-                    source_match_id=match_id,
-                    source_timestamp=match_updated,
-                ),
-                _snapshot_record(
-                    source,
-                    source_object="events",
-                    relative_path=event_path,
-                    payload=events,
-                    source_match_id=match_id,
-                    source_timestamp=match_updated,
-                ),
-            )
+        yield _snapshot_record(
+            source,
+            source_object="lineups",
+            relative_path=lineup_path,
+            payload=lineups,
+            source_match_id=match_id,
+            source_timestamp=match_updated,
+        )
+        yield _snapshot_record(
+            source,
+            source_object="events",
+            relative_path=event_path,
+            payload=events,
+            source_match_id=match_id,
+            source_timestamp=match_updated,
         )
         if first_event_batch is None:
             first_event_batch = (match_id, events)
 
     if inject_chaos and first_event_batch:
         match_id, events = first_event_batch
-        records.extend(
-            generate_controlled_variants(
-                source=source,
-                match_id=match_id,
-                events=events,
-            )
+        yield from generate_controlled_variants(
+            source=source,
+            match_id=match_id,
+            events=events,
         )
 
-    return records
+
+def fetch_snapshot_records(
+    source: StatsBombSource,
+    *,
+    match_limit: int | None = None,
+    inject_chaos: bool = False,
+    fetcher: JsonFetcher = fetch_json,
+) -> list[SourceRecord]:
+    """Return a materialized snapshot for small callers and unit tests."""
+
+    return list(
+        iter_snapshot_records(
+            source,
+            match_limit=match_limit,
+            inject_chaos=inject_chaos,
+            fetcher=fetcher,
+        )
+    )
