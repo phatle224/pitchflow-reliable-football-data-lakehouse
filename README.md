@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-  <strong>English</strong> | Vietnamese discussion and operational notes are available in the <a href="docs/RUN_GUIDE.md">Run Guide</a>.
+  <strong>English</strong> | <a href="README_VI.md">Vietnamese</a>
 </div>
 
 <h3 align="center">Reliable Football Analytics Lakehouse with Bronze–Silver–Gold Delta Tables, Spark Data Quality, and PostgreSQL Serving</h3>
@@ -260,9 +260,8 @@ Schema: public
 SSL: disabled for local development
 ```
 
-For a client running on the host (for example DBeaver), use `localhost:15432`.
-Docker maps host port `15432` to the container port `5432` to avoid collision
-with a native PostgreSQL service on Windows.
+For a client running on the host (for example DBeaver), use `localhost:5432` or `127.0.0.1:5432`.
+Docker maps host port `5432` directly to container port `5432`.
 
 ### PostgreSQL serving tables
 
