@@ -274,19 +274,6 @@ SSL: disabled
   <p><em>Nhấn vào ảnh để mở Metabase Public Dashboard (Cần bật dịch vụ Metabase cục bộ)</em></p>
 </div>
 
-#### Đoạn Mã Embed Live Dashboard (Public Token)
-Để nhúng giao diện Metabase Dashboard vào ứng dụng web của bạn:
-
-```html
-<iframe
-    src="http://localhost:3000/public/dashboard/62fcdade1dd1122d03f804dde9fae39fff070b0c5874e94977442344005dca5f"
-    frameborder="0"
-    width="100%"
-    height="800"
-    allowtransparency>
-</iframe>
-```
-
 ---
 
 ## Giám Sát & Xử Lý Sự Cố
