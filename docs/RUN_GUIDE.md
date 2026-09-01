@@ -151,7 +151,7 @@ Airflow tự tạo `run_id`; DAG truyền giá trị đó thành `pipeline_run_i
 
 ### `ingest_raw`
 
-Input mặc định là `config/statsbomb_source.json`, gồm repository URL, raw base URL, commit SHA, competition `2` và season `27` (Premier League 2015/16, 380 matches). Có thể chọn profile World Cup cũ bằng `PITCHFLOW_SOURCE_CONFIG=config/statsbomb_world_cup_2022.json` hoặc option `--source-config`.
+Input mặc định là `config/statsbomb_source.json`, gồm repository URL, raw base URL, commit SHA, competition `2` và season `27` (Premier League 2015/16, 380 matches). Có thể chỉ định file cấu hình khác qua `PITCHFLOW_SOURCE_CONFIG` hoặc option `--source-config`.
 
 Output:
 

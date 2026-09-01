@@ -22,7 +22,7 @@ Airflow schedules and coordinates each stage.
 ```
 
 - **Ingestion** performs accessibility, parsing, and envelope checks only. It attaches lineage metadata and writes Bronze.
-- **External source** is the pinned StatsBomb Premier League 2015/16 snapshot (competition 2, season 27). Competition, match, lineup, and event JSON files produce the reference entities and match events; the source snapshot must be pinned to a Git commit SHA. The previous World Cup manifest remains available as an explicit alternate profile.
+- **External source** is the pinned Premier League 2015/16 snapshot (competition 2, season 27) from StatsBomb Open Data. Competition, match, lineup, and event JSON files produce the reference entities and match events; the source snapshot is pinned to a Git commit SHA.
 - **Bronze** is the append-only raw source of truth. It contains raw payloads and ingestion metadata.
 - **Spark transformation and quality** parses, standardizes, validates, deduplicates, and routes invalid records to Quarantine.
 - **Silver** contains typed, conformed, deduplicated entities. **Gold** contains analytics-ready aggregates.

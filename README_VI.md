@@ -22,23 +22,44 @@
 ## Mục Lục
 
 1. [Tổng Quan Dự Án](#tong-quan-du-an)
-2. [Kiến Trúc Hệ Thống & Luồng Dữ Liệu](#kien-truc-he-thong--luong-du-lieu)
-3. [Điểm Nhấn Tính Năng](#diem-nhan-tinh-nang)
-4. [Kết Quả Run Smoke Test Đã Kiểm Thử](#ket-qua-run-smoke-test-da-kiem-thu)
-5. [Công Nghệ Sử Dụng](#cong-nghe-su-dung)
-6. [Cấu Trúc Thư Mục](#cau-truc-thu-muc)
-7. [Hướng Dẫn Khởi Chạy Nhanh](#huong-dan-khoi-chay-nhanh)
-8. [Lưu Trữ, Dữ Liệu Đầu Ra & Dashboard](#luu-tru-du-lieu-dau-ra--dashboard)
-9. [Giám Sát & Xử Lý Sự Cố](#giam-sat--xu-ly-su-co)
-10. [Tài Liệu Chi Tiết](#tai-lieu-chi-tiet)
+2. [Mô Tả Nguồn Dữ Liệu (Dataset Overview)](#mo-ta-nguon-du-lieu-dataset-overview)
+3. [Kiến Trúc Hệ Thống & Luồng Dữ Liệu](#kien-truc-he-thong--luong-du-lieu)
+4. [Điểm Nhấn Tính Năng](#diem-nhan-tinh-nang)
+5. [Kết Quả Run Smoke Test Đã Kiểm Thử](#ket-qua-run-smoke-test-da-kiem-thu)
+6. [Công Nghệ Sử Dụng](#cong-nghe-su-dung)
+7. [Cấu Trúc Thư Mục](#cau-truc-thu-muc)
+8. [Hướng Dẫn Khởi Chạy Nhanh](#huong-dan-khoi-chay-nhanh)
+9. [Lưu Trữ, Dữ Liệu Đầu Ra & Dashboard](#luu-tru-du-lieu-dau-ra--dashboard)
+10. [Giám Sát & Xử Lý Sự Cố](#giam-sat--xu-ly-su-co)
+11. [Tài Liệu Chi Tiết](#tai-lieu-chi-tiet)
 
 ---
 
 ## Tổng Quan Dự Án
 
-PitchFlow là một hệ thống Football Data Lakehouse chạy cục bộ trên môi trường Docker Compose, được thiết kế nhằm chứng minh tư duy xây dựng **ELT pipeline đáng tin cậy (Reliable ELT)** thay vì chỉ tập trung vào kịch bản lý tưởng (happy path). Hệ thống tự động thu thập dữ liệu nguồn được ghim phiên bản cố định từ StatsBomb Open Data (mặc định Premier League 2015/16 với 380 trận), lưu giữ nguyên bản payload thô ở tầng append-only Bronze, thực thi chuẩn hóa và kiểm tra chất lượng dữ liệu (DQ) bằng PySpark để đưa vào tầng Silver, xây dựng các bảng tổng hợp phân tích ở tầng Gold, và đồng bộ sang PostgreSQL cho Metabase hiển thị Dashboard.
+PitchFlow là một hệ thống Football Data Lakehouse chạy cục bộ trên môi trường Docker Compose, được thiết kế nhằm chứng minh tư duy xây dựng **ELT pipeline đáng tin cậy (Reliable ELT)** thay vị chỉ tập trung vào kịch bản lý tưởng (happy path). Hệ thống tự động thu thập dữ liệu nguồn được ghim phiên bản cố định từ StatsBomb Open Data (mặc định Premier League 2015/16 với 380 trận), lưu giữ nguyên bản payload thô ở tầng append-only Bronze, thực thi chuẩn hóa và kiểm tra chất lượng dữ liệu (DQ) bằng PySpark để đưa vào tầng Silver, xây dựng các bảng tổng hợp phân tích ở tầng Gold, và đồng bộ sang PostgreSQL cho Metabase hiển thị Dashboard.
 
 Kiến trúc độ tin cậy của dự án chủ động giả lập các sự cố dữ liệu thực tế từ nguồn: trùng lặp sự kiện hoàn toàn (exact duplicates), dữ liệu lỗi định dạng (malformed records), hiệu chỉnh thay đổi nội dung (changed-payload corrections) và sự kiện đến muộn (late-arriving events). Bản ghi không hợp lệ được chuyển hướng sang tầng Quarantine kèm tham chiếu tới `bronze_record_id` thô ban đầu chứ không bị xóa bỏ âm thầm. Việc kết hợp giữa `pipeline_run_id`, định danh bản ghi xác định, Delta merge và PostgreSQL UPSERT giúp quy trình retry hoặc rerun đạt tính toàn vẹn và an toàn tuyệt đối (idempotency).
+
+---
+
+## Mô Tả Nguồn Dữ Liệu (Premier League Dataset Overview)
+
+Dự án PitchFlow sử dụng bộ dữ liệu **Premier League 2015/16** đầy đủ từ kho lưu trữ mở của StatsBomb (nay thuộc Hudl). Đây là bộ dữ liệu bóng đá chuyên sâu tiêu chuẩn ngành, cung cấp thông tin chi tiết từ cấp trận đấu tới từng sự kiện diễn ra trên sân.
+
+### 1. Thông Tin Nguồn & Đường Dẫn Trực Tiếp (Dataset Links)
+* **Tên tập dữ liệu**: Premier League Mùa giải 2015/16 (`competition_id=2`, `season_id=27`).
+* **Kho lưu trữ mã nguồn mở**: [StatsBomb Open Data Repository](https://github.com/statsbomb/open-data) (hoặc mirror tại [hudl/open-data](https://github.com/hudl/open-data)).
+* **Link trực tiếp file trận đấu Premier League**: [Premier League 2015/16 Matches JSON (`data/matches/2/27.json`)](https://github.com/statsbomb/open-data/blob/master/data/matches/2/27.json).
+* **Quy mô dữ liệu**: **380 trận đấu** (toàn bộ mùa giải Premier League 2015/16), bao gồm hàng triệu sự kiện chi tiết.
+* **Mã Commit SHA ghim cố định (Version Pinning)**: `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`. Việc ghim mã commit SHA giúp đảm bảo dữ liệu nguồn không bị thay đổi ngẫu nhiên, giúp quy trình nạp (Ingestion) và xử lý đạt tính **tái hiện (reproducibility)** 100%.
+* **Cấu hình pipeline**: Lưu tại `config/statsbomb_source.json`.
+
+### 2. Cấu Trúc File Nguồn JSON
+* **`competitions.json`**: Danh mục các giải đấu và mùa giải bóng đá.
+* **`matches/2/27.json`**: Danh sách chi tiết 380 trận đấu của Premier League 2015/16 (thông tin 2 đội, ngày giờ, tỷ số, trọng tài, sân vận động).
+* **`lineups/{match_id}.json`**: Đội hình xuất phát, danh sách dự bị, vị trí và số áo của từng cầu thủ theo trận đấu.
+* **`events/{match_id}.json`**: Dữ liệu sự kiện theo từng giây/phút trong trận (sút bóng, chuyền bóng, xoạc bóng, lừa bóng, thẻ phạt, bàn thắng, việt vị...).
 
 ---
 
@@ -101,7 +122,7 @@ flowchart TB
 ## Điểm Nhấn Tính Năng
 
 ### 1. Nạp Dữ Liệu Nguồn Tái Đóng Băng (Reproducible Source Ingestion)
-Nguồn dữ liệu thực tế được ghim cố định tại StatsBomb Open Data commit SHA `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` cho mùa giải Premier League 2015/16 (`competition_id=2`, `season_id=27`). Tất cả thông tin URI, commit SHA, file thô và metadata nạp được lưu giữ trọn vẹn tại Bronze. Profile FIFA World Cup 2022 sẵn có tại `config/statsbomb_world_cup_2022.json`.
+Nguồn dữ liệu thực tế được ghim cố định tại Premier League 2015/16 (`competition_id=2`, `season_id=27`) commit SHA `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`. Tất cả thông tin URI, commit SHA, file thô và metadata nạp được lưu giữ trọn vẹn tại tầng Bronze.
 
 ### 2. Luồng ELT Chuẩn Medallion Phân Tầng An Toàn
 Dữ liệu JSON thô được tải lên Bronze trước khi áp dụng bất kỳ logic kiểm tra nghiệp vụ nào. Spark tiến hành đọc Bronze, bóc tách danh sách trận đấu, đội hình và sự kiện vào các bảng Silver, sau đó tái tổng hợp các trận đấu/đội bóng bị ảnh hưởng ở tầng Gold. Quy trình này bảo toàn bằng chứng thô và tách biệt logic biến đổi khỏi luồng điều phối Airflow.

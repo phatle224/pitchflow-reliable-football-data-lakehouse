@@ -33,7 +33,7 @@ Read `docs/PitchFlow_PRD.md` before changing product behavior. For V1 implementa
 ## Engineering invariants
 
 - Delta tables in MinIO own Bronze, Silver, Gold, and Quarantine data; PostgreSQL receives only selected Gold datasets for Metabase.
-- The V1 external source is a version-pinned StatsBomb Open Data FIFA World Cup 2022 snapshot (`competition_id=43`, `season_id=106`). Preserve its source URI and commit SHA in Bronze lineage.
+- The V1 external source is a version-pinned Premier League 2015/16 dataset snapshot (`competition_id=2`, `season_id=27`) from StatsBomb Open Data. Preserve its source URI and commit SHA in Bronze lineage.
 - Bronze is append-only and retains raw payload plus ingestion lineage. Business validation happens after Bronze.
 - Airflow orchestrates work; Spark performs transformations and data-quality checks.
 - Every batch propagates `pipeline_run_id`. Retrying the same logical batch must not duplicate Silver, Gold, or serving-layer business rows.

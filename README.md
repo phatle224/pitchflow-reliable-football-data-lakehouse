@@ -22,15 +22,16 @@
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
-2. [System Architecture & Data Flow](#system-architecture--data-flow)
-3. [Core Features](#core-features)
-4. [Validated Smoke Result](#validated-smoke-result)
-5. [Tech Stack](#tech-stack)
-6. [Directory Structure](#directory-structure)
-7. [Quick Start Guide](#quick-start-guide)
-8. [Storage, Outputs & Dashboards](#storage-outputs--dashboards)
-9. [Monitoring & Troubleshooting](#monitoring--troubleshooting)
-10. [Documentation](#documentation)
+2. [Dataset Overview](#dataset-overview)
+3. [System Architecture & Data Flow](#system-architecture--data-flow)
+4. [Core Features](#core-features)
+5. [Validated Smoke Result](#validated-smoke-result)
+6. [Tech Stack](#tech-stack)
+7. [Directory Structure](#directory-structure)
+8. [Quick Start Guide](#quick-start-guide)
+9. [Storage, Outputs & Dashboards](#storage-outputs--dashboards)
+10. [Monitoring & Troubleshooting](#monitoring--troubleshooting)
+11. [Documentation](#documentation)
 
 ---
 
@@ -39,6 +40,28 @@
 PitchFlow is a local, Docker Compose football data lakehouse built to demonstrate reliable ELT rather than only happy-path analytics. It ingests a version-pinned StatsBomb Open Data Premier League 2015/16 snapshot (380 matches), preserves source payloads in an append-only Bronze layer, validates and conforms them with PySpark into Silver, builds Gold analytics aggregates, and publishes selected Gold datasets to PostgreSQL for Metabase.
 
 The reliability design intentionally exercises upstream problems: exact duplicate events, malformed records, changed-payload corrections and late-arriving events. Invalid data is routed to Quarantine with a reference to its Bronze record; it is not silently discarded. `pipeline_run_id`, deterministic record IDs, Delta merges and PostgreSQL UPSERTs make retries and reruns safe.
+
+---
+
+## Premier League Dataset Overview
+
+PitchFlow ingests the full **Premier League 2015/16** dataset from the open-data repository published by StatsBomb (now Hudl). This industry-standard football dataset provides high-granularity match metadata and second-by-second event telemetry.
+
+### 1. Source Details & Dataset Links
+- **Dataset Name**: Premier League Season 2015/16 (`competition_id=2`, `season_id=27`).
+- **Open Data Repository**: [StatsBomb Open Data Repository](https://github.com/statsbomb/open-data) (or mirror at [hudl/open-data](https://github.com/hudl/open-data)).
+- **Direct Match Dataset Link**: [Premier League 2015/16 Matches JSON (`data/matches/2/27.json`)](https://github.com/statsbomb/open-data/blob/master/data/matches/2/27.json).
+- **Data Volume**: Complete **380 matches** (entire 2015/16 Premier League season), containing millions of event records.
+- **Version Pinning Commit SHA**: `b0bc9f22dd77c206ddedc1d742893b3bbe64baec`. Pinning the source commit SHA guarantees 100% **reproducibility** across ingestion and processing runs.
+- **Pipeline Config**: Configured in `config/statsbomb_source.json`.
+
+### 2. Raw JSON File Structure
+- **`competitions.json`**: Catalog of available football competitions and seasons.
+- **`matches/2/27.json`**: Manifest of all 380 Premier League 2015/16 matches (teams, scores, dates, referees, stadiums).
+- **`lineups/{match_id}.json`**: Starting lineups, substitutes, positions, and jersey numbers per match.
+- **`events/{match_id}.json`**: Fine-grained second-by-second match events (passes, shots, tackles, dribbles, cards, offsides, goals).
+
+---
 
 
 ## System Architecture & Data Flow
@@ -99,7 +122,7 @@ flowchart TB
 
 ### 1. Reproducible source ingestion
 
-The active source is pinned to StatsBomb Open Data commit `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` for Premier League 2015/16 (`competition_id=2`, `season_id=27`). The URI, commit SHA, source object and retrieval metadata are persisted in Bronze. The prior World Cup profile remains available at `config/statsbomb_world_cup_2022.json`.
+The active source is pinned to commit `b0bc9f22dd77c206ddedc1d742893b3bbe64baec` for Premier League 2015/16 (`competition_id=2`, `season_id=27`). The URI, commit SHA, source object and retrieval metadata are persisted in Bronze.
 
 ### 2. Reliable Bronze–Silver–Gold ELT
 
