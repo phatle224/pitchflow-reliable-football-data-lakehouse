@@ -40,8 +40,6 @@ PitchFlow là một hệ thống Football Data Lakehouse chạy cục bộ trên
 
 Kiến trúc độ tin cậy của dự án chủ động giả lập các sự cố dữ liệu thực tế từ nguồn: trùng lặp sự kiện hoàn toàn (exact duplicates), dữ liệu lỗi định dạng (malformed records), hiệu chỉnh thay đổi nội dung (changed-payload corrections) và sự kiện đến muộn (late-arriving events). Bản ghi không hợp lệ được chuyển hướng sang tầng Quarantine kèm tham chiếu tới `bronze_record_id` thô ban đầu chứ không bị xóa bỏ âm thầm. Việc kết hợp giữa `pipeline_run_id`, định danh bản ghi xác định, Delta merge và PostgreSQL UPSERT giúp quy trình retry hoặc rerun đạt tính toàn vẹn và an toàn tuyệt đối (idempotency).
 
-Dự án hiện đã triển khai hoàn thiện V1 cùng các tính năng cốt lõi về độ tin cậy (Reliability) của V2. Bạn có thể tham khảo hướng dẫn chi tiết dành cho phỏng vấn tại [docs/INTERVIEW_GUIDE.md](docs/INTERVIEW_GUIDE.md) và tài liệu vận hành tại [docs/RUN_GUIDE.md](docs/RUN_GUIDE.md).
-
 ---
 
 ## Kiến Trúc Hệ Thống & Luồng Dữ Liệu

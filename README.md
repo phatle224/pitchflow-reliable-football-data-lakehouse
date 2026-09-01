@@ -40,7 +40,6 @@ PitchFlow is a local, Docker Compose football data lakehouse built to demonstrat
 
 The reliability design intentionally exercises upstream problems: exact duplicate events, malformed records, changed-payload corrections and late-arriving events. Invalid data is routed to Quarantine with a reference to its Bronze record; it is not silently discarded. `pipeline_run_id`, deterministic record IDs, Delta merges and PostgreSQL UPSERTs make retries and reruns safe.
 
-This repository currently targets V1 with several reliability capabilities brought forward from the V2 roadmap. A detailed interview-oriented explanation is available in [docs/INTERVIEW_GUIDE.md](docs/INTERVIEW_GUIDE.md), and an operator runbook is available in [docs/RUN_GUIDE.md](docs/RUN_GUIDE.md).
 
 ## System Architecture & Data Flow
 
